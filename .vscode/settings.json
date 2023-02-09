@@ -1,0 +1,28 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default"
+            },
+            "previewLimit": 50,
+            "server": "ipolistingdb.cpeguhkdhxti.ap-northeast-2.rds.amazonaws.com",
+            "port": 3306,
+            "driver": "MariaDB",
+            "name": "trustDB",
+            "database": "ipolisting",
+            "username": "root",
+            "password": "dara100400!",
+            "connectionTimeout": 30
+        },
+        {
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5433,
+            "driver": "PostgreSQL",
+            "name": "blogAPI",
+            "database": "communities",
+            "username": "postgres",
+            "password": "postgres"
+        }
+    ]
+}
