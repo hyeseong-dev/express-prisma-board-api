@@ -24,7 +24,7 @@ model User {
 
 model Category {
   id    String @id @default(uuid())
-  name  String
+  name  String @unique
   posts Post[]
 }
 
@@ -39,6 +39,7 @@ model Post {
   categoryId String
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  Like       Like[]
 }
 
 model Comment {
@@ -57,10 +58,11 @@ model Comment {
 }
 
 model Like {
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
   userId    String
-  commentId String
-
-  @@id([userId, commentId])
+  postId    String?
+  commentId String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
 }

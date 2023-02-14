@@ -1,78 +1,96 @@
-import { PrismaClient } from "@prisma/client"
-const prisma = new PrismaClient()
+import prisma from './client.js';
+import { faker } from '@faker-js/faker';
+import { exclude, encrypt_password } from '../utils/service.js'
 
-async function seed() {
-  await prisma.post.deleteMany()
-  await prisma.category.deleteMany()
-  await prisma.user.deleteMany()
-  await prisma.like.deleteMany()
-  await prisma.comment.deleteMany()
-  const lee = await prisma.user.create({ data: { name: "이혜성", email:"hyeseong43@gmail.com", password:"test1234"  } })
-  const sally = await prisma.user.create({ data: { name: "샐리", email:"sally@gmail.com", password:"test1234"  } })
-  
+const instanceCache = {};
 
-  const c1 = await prisma.category.create({ data: { name: "IT"}})
-  const c2 = await prisma.category.create({ data: { name: "Culture"}})
+async function getRandomInstanceId(model) {
+  if (!instanceCache[model]) {
+    instanceCache[model] = await prisma[model].findMany();
 
-  const post1 = await prisma.post.create({
-    data: {
-        title: "Post 1",
-        body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer placerat urna vel ante volutpat, ut elementum mi placerat. Phasellus varius nisi a nisl interdum, at ultrices ex tincidunt. Duis nec nunc vel urna ullamcorper eleifend ac id dolor. Phasellus vitae tortor ac metus laoreet rutrum. Aenean condimentum consequat elit, ut placerat massa mattis vitae. Vivamus dictum faucibus massa, eget euismod turpis pretium a. Aliquam rutrum rhoncus mi, eu tincidunt mauris placerat nec. Nunc sagittis libero sed facilisis suscipit. Curabitur nisi lacus, ullamcorper eu maximus quis, malesuada sit amet nisi. Proin dignissim, lacus vitae mattis fermentum, dui dolor feugiat turpis, ut euismod libero purus eget dui.",
-        authorId: lee.id,
-        categoryId: c1.id,
-    },
-  })
-  const post2 = await prisma.post.create({
-    data: {
-        title: "Post 2",
-        body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer placerat urna vel ante volutpat, ut elementum mi placerat. Phasellus varius nisi a nisl interdum, at ultrices ex tincidunt. Duis nec nunc vel urna ullamcorper eleifend ac id dolor. Phasellus vitae tortor ac metus laoreet rutrum. Aenean condimentum consequat elit, ut placerat massa mattis vitae. Vivamus dictum faucibus massa, eget euismod turpis pretium a. Aliquam rutrum rhoncus mi, eu tincidunt mauris placerat nec. Nunc sagittis libero sed facilisis suscipit. Curabitur nisi lacus, ullamcorper eu maximus quis, malesuada sit amet nisi. Proin dignissim, lacus vitae mattis fermentum, dui dolor feugiat turpis, ut euismod libero purus eget dui.",
-        authorId: lee.id,
-        categoryId: c1.id,
-    },
-  })
-  const post3 = await prisma.post.create({
-    data: {
-        title: "Post 3",
-        body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer placerat urna vel ante volutpat, ut elementum mi placerat. Phasellus varius nisi a nisl interdum, at ultrices ex tincidunt. Duis nec nunc vel urna ullamcorper eleifend ac id dolor. Phasellus vitae tortor ac metus laoreet rutrum. Aenean condimentum consequat elit, ut placerat massa mattis vitae. Vivamus dictum faucibus massa, eget euismod turpis pretium a. Aliquam rutrum rhoncus mi, eu tincidunt mauris placerat nec. Nunc sagittis libero sed facilisis suscipit. Curabitur nisi lacus, ullamcorper eu maximus quis, malesuada sit amet nisi. Proin dignissim, lacus vitae mattis fermentum, dui dolor feugiat turpis, ut euismod libero purus eget dui.",
-        authorId: lee.id,
-        categoryId: c1.id,
-    },
-  })
-  
-
-  const comment1 = await prisma.comment.create({
-    data: {
-      message: "I am a root comment",
-      userId: lee.id,
-      postId: post1.id,
-    },
-  })
-
-  const comment2 = await prisma.comment.create({
-    data: {
-      parentId: comment1.id,
-      message: "nested comments1",
-      userId: lee.id,
-      postId: post1.id,
-    },
-  })
-  
-  const comment3 = await prisma.comment.create({
-    data: {
-      parentId: comment2.id,
-      message: "nested comments2",
-      userId: lee.id,
-      postId: post1.id,
-    },
-  })
-
-  const comment4 = await prisma.comment.create({
-    data: {
-      message: "I am another root comment",
-      userId: lee.id,
-      postId: post1.id,
-    },
-  })
+  }
+  const instanceIds = instanceCache[model].map(instance => instance.id);
+  const randomIndex = Math.floor(Math.random() * instanceIds.length);
+  return instanceIds[randomIndex];
 }
 
-seed()
+const CATEGORY_LENGTH = 10;
+const OTHER_LENGTH = 1000;
+
+async function seedCategories() {
+  const categories = Array.from({ length: CATEGORY_LENGTH }, () => {
+    const name = faker.commerce.department().toLowerCase();
+    return { name };
+  });
+  await prisma.category.createMany({ data: categories, skipDuplicates: true });
+  console.log(CATEGORY_LENGTH, '카테고리 생성 완료');
+}
+
+async function seedUsers() {
+  const users = Array.from({ length: OTHER_LENGTH }, async () => {
+    const email = faker.internet.email()
+    return {
+      name: faker.name.fullName(),
+      email,
+      password: await encrypt_password('test1234'),
+    };
+  });
+  await prisma.user.createMany({ data: await Promise.all(users) });
+  console.log(OTHER_LENGTH, '유저 생성 완료');
+}
+
+async function seedPosts() {
+  const posts = Array.from({ length: OTHER_LENGTH }, async () => {
+    return {
+      title: faker.lorem.sentence(),
+      body: faker.lorem.paragraph(),
+      authorId: await getRandomInstanceId('user'),
+      categoryId: await getRandomInstanceId('category'),
+    };
+  });
+  await prisma.post.createMany({ data: await Promise.all(posts) });
+  console.log(OTHER_LENGTH, '포스트 생성 완료');
+}
+
+async function seedComments() {
+  const comments = Array.from({ length: OTHER_LENGTH }, async () => {
+    return {
+      message: faker.lorem.sentence(),
+      userId: await getRandomInstanceId('user'),
+      postId: await getRandomInstanceId('post'),
+    };
+  });
+  await prisma.comment.createMany({ data: await Promise.all(comments) });
+  console.log(OTHER_LENGTH, '댓글 생성 완료');
+}
+
+async function seedLikes() {
+  const likes = Array.from({ length: OTHER_LENGTH }, async () => {
+    return {
+      userId: await getRandomInstanceId('user'),
+      postId: await getRandomInstanceId('post'),
+      commentId: await getRandomInstanceId('comment'),
+    };
+  });
+  await prisma.like.createMany({ data: await Promise.all(likes), skipDuplicates: true });
+  console.log(OTHER_LENGTH, '좋아요 생성 완료');
+}
+
+async function seedData() {
+  await prisma.post.deleteMany();
+  await prisma.category.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.like.deleteMany();
+  await prisma.comment.deleteMany();
+
+  await Promise.all([
+  seedCategories()
+  .then(seedUsers)
+  .then(seedPosts)
+  .then(seedComments)
+  .then(seedLikes)
+  .catch((err) => console.error(err))
+  ]);
+}
+
+seedData();
