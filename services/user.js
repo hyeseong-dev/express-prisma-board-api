@@ -1,6 +1,6 @@
 import prisma from '../prisma/client.js';
 import { exclude, encrypt_password, BaseService} from '../utils/service.js'
-import { NotFoundError } from '../utils/error.js'
+import httpStatus from '../utils/httpStatus.js'
 
 class UserService extends BaseService{
   static prisma = prisma
@@ -78,10 +78,10 @@ class UserService extends BaseService{
           posts: true,
         },
       });
-      if (!user) return res.status(404).json({message: 'User not found'});
+      if (!user) return res.status(httpStatus.NOT_FOUND.code).json({message: 'User not found'});
       
       exclude(user, ['password']);
-      return res.status(200).json(user);
+      return res.status(httpStatus.OK.code).json(user);
     } catch (error) {
       next(error);
     }
@@ -90,7 +90,7 @@ class UserService extends BaseService{
   static async create({ body: { name, email, password } },res, next) {
     try {
       let user = await this.prisma[this.model].findUnique({ where: { email } });
-      if (user) return res.status(200).json({ message: 'email exist' });
+      if (user) return res.status(httpStatus.OK.code).json({ message: 'email exist' });
 
       user = await this.prisma[this.model].create({
         data: { name, 
@@ -100,7 +100,7 @@ class UserService extends BaseService{
         select: { id: true, name: true, email: true, createdAt: true, updatedAt: true },
       });
 
-      return res.status(201).json(user);
+      return res.status(httpStatus.CREATED.code).json(user);
     } catch (error) {
       next(error);
     }
@@ -111,7 +111,7 @@ class UserService extends BaseService{
       let user = await this.prisma[this.model].findUnique({ where: { id:userId } });
       
       if (!user) {
-        return res.status(404).send({ message: 'User not found' });
+        return res.status(httpStatus.NOT_FOUND.code).send({ message: 'User not found' });
       }
       const email = updatedEmail || user.email;
       const name = updatedName || user.name;
@@ -123,7 +123,7 @@ class UserService extends BaseService{
         select: { id: true, name: true, email: true, createdAt: true, updatedAt: true },
       });
 
-      return res.status(200).json(user);
+      return res.status(httpStatus.OK.code).json(user);
     } catch (error) {
       next(error);
     }
@@ -132,12 +132,12 @@ class UserService extends BaseService{
   static async delete({userId}, res, next) {
     try {
       let user = await this.prisma[this.model].findUnique({ where: { id:userId } });
-      if (!user) return res.status(404).send({ message: 'User not found' });
+      if (!user) return res.status(httpStatus.NOT_FOUND.code).send({ message: 'User not found' });
 
       user = await this.prisma[this.model].delete({ where: { id:userId } });
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
-      return res.status(204).send();
+      return res.status(httpStatus.NO_CONTENT.code).send();
     } catch (error) {
       next(error);
     }

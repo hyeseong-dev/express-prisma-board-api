@@ -1,7 +1,9 @@
 import prisma from '../prisma/client.js';
+import httpStatus from '../utils/httpStatus.js';
 
 class CommentService {
   static prisma = prisma
+  static model = 'comment'
   static async getAll(req,res,next) {
     try {
       const posts = await this.prisma.post.findMany({
@@ -32,8 +34,9 @@ class CommentService {
   }
 
   static async create(req,  res, next) {
+    console.log(req.params.postId, req.body.message);
     if (!req.params.postId|| !req.body.message){
-      return res.status(400).json({message: 'Bad Request'});
+      return res.status(httpStatus.BAD_REQUEST.code).json({message: httpStatus.BAD_REQUEST.message});
     }
     try {
     const comment = await this.prisma.comment.create({
@@ -45,7 +48,7 @@ class CommentService {
       }
     })
 
-      return res.status(201).json(comment);
+      return res.status(httpStatus.CREATED.code).json(comment);
     } catch (error) {
       next(error);
     }
@@ -57,7 +60,7 @@ class CommentService {
     const message = req.body.message
 
     if (!commentId || !userId || !message){
-      return res.status(400).json({message: 'Bad Request'});
+      return res.status(httpStatus.BAD_REQUEST.code).json({message: httpStatus.BAD_REQUEST.message});
     }
     try {
       const comment = await this.prisma.comment.updateMany({
@@ -70,10 +73,10 @@ class CommentService {
         }
       })
       if (!comment.count ){
-        return res.status(404).json({message: 'not found'})
+        return res.status(httpStatus.NOT_FOUND.code).json({message: (httpStatus.NOT_FOUND.code)})
       }
       
-      return res.status(200).json({message: 'success to update message'});
+      return res.status(httpStatus.OK.code).json({message: 'success to update message'});
     } catch (error) {
       next(error);
     }
@@ -81,41 +84,36 @@ class CommentService {
 
   static async get(req,  res, next) {
     const commentId = req.params.commentId;  
-    if (!commentId) return res.status(400).json({message: 'Bad Request'});
+    if (!commentId) return res.status(httpStatus.BAD_REQUEST.code).json({message: httpStatus.BAD_REQUEST.message});
     try {
-      const getCommentWithChildren = async (prisma, commentId, level = 0) => {
-        const comment = await prisma.comment.findUniqueOrThrow({
-          where: {
-            id: commentId
-          }
-        });
-
-        const children = await prisma.comment.findMany({
-          where: {
-            parentId: commentId
-          }
-        });
-
-        if (!children.length) {
-          comment.level  
-          return comment
-        };
-
-        comment.children = await Promise.all(
-          children.map(child => getCommentWithChildren(prisma, child.id, level+1))
-        );
-
-        return comment;
+        const getCommentWithChildren = async (prisma, commentId, level = 0) => {
+          const comment = await prisma.comment.findUniqueOrThrow({ where: { id: commentId }});
+          const children = await prisma.comment.findMany({ where: { parentId: commentId }});
+          if (!children.length) { comment.level; return comment; };
+          comment.children = await Promise.all(children.map(child => getCommentWithChildren(prisma, child.id, level+1)));
+          return comment;
       };
-
       const comment = await getCommentWithChildren(this.prisma, commentId);
 
-
-      return res.status(200).json(comment);
+      return res.status(httpStatus.OK.code).json(comment);
     } catch (error) {
-      if (error.code === 'P2025') return res.status(404).json({message: error.message})
+      if (error.code === 'P2025') return res.status(httpStatus.NOT_FOUND.code).json({message: error.message})
       next(error);
       }
+  }
+
+  static async delete(req,  res, next) {
+    const commentId = req.params.commentId;
+    if (!commentId) return res.status(httpStatus.BAD_REQUEST.code).json({message: httpStatus.BAD_REQUEST.message});
+    try {
+      let comment = await this.prisma[this.model].findUnique({ where: { id:commentId } });
+      if (!comment) return res.status(httpStatus.NOT_FOUND.code).send({ message: httpStatus.NOT_FOUND.message });
+      if (comment.userId != req.userId) return res.status(httpStatus.FORBIDDEN.code).json({error: httpStatus.FORBIDDEN.message});
+      await this.prisma[this.model].deleteMany({ where: { id:commentId } });
+      return res.status(httpStatus.NO_CONTENT.code).send();
+    } catch (error) {
+      next(error);
+    }
   }
 
 }

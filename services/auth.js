@@ -1,24 +1,35 @@
 import prisma from '../prisma/client.js';
 import { exclude, encrypt_password, matched_password } from '../utils/service.js'
 import jwt from 'jsonwebtoken';
+import httpStatus from '../utils/httpStatus.js'
+
 
 class AuthService {
     static prisma = prisma;
-
     static async login({ body: { email, password } },  res, next) {
         try {
-            res.clearCookie('accessToken')
-            let user = await this.prisma.user.findUnique({
-            where: { email },
-            })
-            if (!user) return res.status(404).json({message: 'incorrect email'});
 
+            res.clearCookie('accessToken')
+            
+            let user = await this.prisma.user.findUnique({
+                where: { email },
+            })
+            
+            if (!user) return res.status(httpStatus.BAD_REQUEST.code).json({error: httpStatus.BAD_REQUEST.message});
+            
             const is_matched_password = await matched_password(password, user.password)
             
-            if(!is_matched_password) return res.status(401).json({message: 'unauthorized'});
-            const accessToken = jwt.sign({userId: user.id}, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h', issuer: "Lee"});
-            const refreshToken = jwt.sign({userId: user.id}, process.env.REFRESH_TOKEN_SECRET, {expiresIn: '24h', issuer: "Lee"});
-            exclude(user, ['password'])
+            if(!is_matched_password) return res.status(httpStatus.UNAUTHORIZED.code).json({error: httpStatus.UNAUTHORIZED.message});
+            
+            const accessToken = jwt.sign({userId: user.id}, 
+                process.env.ACCESS_TOKEN_SECRET, 
+                {expiresIn: '1h', issuer: "Lee"});
+
+            const refreshToken = jwt.sign({userId: user.id}, 
+                process.env.REFRESH_TOKEN_SECRET, 
+                {expiresIn: '24h', issuer: "Lee"});
+
+            delete user.password;
             
             res.cookie("accessToken", accessToken, {
                 secure: false, httpOnly: true,
@@ -26,7 +37,7 @@ class AuthService {
             res.cookie("refreshToken", refreshToken, {
                 secure: false, httpOnly: true,
             })
-            return res.status(200).json({user}) 
+            return res.status(httpStatus.OK.code).json({user}) 
         } catch (error) {
             next(error);
         }
@@ -35,7 +46,7 @@ class AuthService {
     static async logout(req,res, next) {
         try {
             res.clearCookie('accessToken');
-            res.status(204).send()
+            res.status(httpStatus.NO_CONTENT.code).send()
         } catch (error) {
             next(error);
         }
@@ -46,7 +57,7 @@ class AuthService {
             let user = await this.prisma.user.findUnique({ where: { id } });
             
             if (!user) {
-            return res.status(404).send({ message: 'User not found' });
+            return res.status(httpStatus.NOT_FOUND.code).send({ error: httpStatus.NOT_FOUND.message });
             }
             const email = updatedEmail || user.email;
             const name = updatedName || user.name;
@@ -58,7 +69,7 @@ class AuthService {
             select: { id: true, name: true, email: true, createdAt: true, updatedAt: true },
             });
 
-            return res.status(200).json(user);
+            return res.status(httpStatus.OK.code).json(user);
         } catch (error) {
             next(error);
         }
@@ -67,10 +78,10 @@ class AuthService {
     async delete({ params: { id } }, res, next) {
         try {
             let user = await this.prisma.user.findUnique({ where: { id } });
-            if (!user) return res.status(404).send({ message: 'User not found' });
+            if (!user) return res.status(httpStatus.NOT_FOUND.code).send({ message: httpStatus.NOT_FOUND.message });
 
             user = await this.prisma.user.delete({ where: { id } });
-            return res.status(204).send();
+            return res.status(httpStatus.NO_CONTENT.code).send();
         } catch (error) {
             next(error);
         }

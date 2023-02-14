@@ -1,14 +1,10 @@
 import express from 'express';
+import httpStatus from '../utils/httpStatus.js'
+
 
 const likeRouter = express.Router();
+const notFoundError = new NotFoundError()
 
-
-// likeRouter.post('/signup', )
-// likeRouter.post('/login', )
-// likeRouter.post('/accesstoken', )
-// likeRouter.post('/refreshtoken', )
-// likeRouter.post('/logout', )
-// Get all users
 likeRouter.get("/users", async(req, res) => {
     const users = await prisma.user.findMany({
         select: { id: true, name: true, email: true}
@@ -24,7 +20,7 @@ likeRouter.get('/users/:id', async (req, res) => {
     select: {id: true, name: true, email: true, createdAt: true, updatedAt: true }
   });
   if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+    return res.status(notFoundError.code).json({ error: notFoundError.message });
   }
   res.json(user);
 });
@@ -38,7 +34,7 @@ likeRouter.post('/users', async (req, res) => {
         select: {id: true, name: true, email: true, createdAt: true, updatedAt: true }
     });
 
-    if (user) return res.status(200).json({ message: 'email exist' });
+    if (user) return res.status(httpStatus.OK.code).json({ message: 'email exist' });
     
     user = await prisma.user.create(
         { data: { name, email, password },
@@ -55,12 +51,10 @@ likeRouter.put('/users/:id', async (req, res) => {
     where: { id }
     });
 
-    if (!user) return res.status(404).json({ message: 'user not exist' });
-
+    if (!user) return res.status(notFoundError.code).json({ error: notFoundError.message });
     const { name, email, password } = req.body;
     
-    if (user) return res.status(200).json({ message: 'email exist' });
-    
+    if (user) return res.status(httpStatus.OK.code).json({ message: 'email exist' });
     user = await prisma.user.create(
         { data: { name, email, password },
         select: {id: true, name: true, email: true, createdAt: true, updatedAt: true }

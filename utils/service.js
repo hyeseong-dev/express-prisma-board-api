@@ -40,7 +40,7 @@ class BaseService {
       } else if (currentPage === totalPages) {
         paginationResult.last = { page: totalPages, limit: perPageLimit };
       } else {
-        return res.status(404).json({ error: "Resource not found" });
+        return res.status(httpStatus.NOT_FOUND.code).json({ error: "Resource not found" });
       }
     };
 

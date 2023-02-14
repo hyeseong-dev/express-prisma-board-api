@@ -1,10 +1,12 @@
 import jwt from 'jsonwebtoken';
 import prisma from '../prisma/client.js';
+import httpStatus from './httpStatus.js';
 
 export const authenticate = async (req, res , next) => {
+    console.log(2);
     const accessToken = req.cookies.accessToken
     if (!accessToken){
-        res.status(401).send({message: 'unauthorized'})
+        res.status(httpStatus.UNAUTHORIZED.code).send({message: 'unauthorized'})
         return
     }
     try {  
@@ -14,7 +16,7 @@ export const authenticate = async (req, res , next) => {
         next();
     } catch (error) {
         res.clearCookie('accessToken');
-        return res.status(401).json(error.message)
+        return res.status(httpStatus.UNAUTHORIZED.code).json(error.message)
         // next(error);
 
     }

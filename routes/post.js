@@ -33,8 +33,6 @@ postRouter.get('/:postId/comment/:commentId"', async (req, res, next) => {
     await CommentService.get(req, res, next);
 });
 
-
-
 postRouter.patch('/:postId/comment/:commentId"', authenticate, async (req, res, next) => {
     console.log(1);
     await CommentService.update(req, res, next);
@@ -45,14 +43,5 @@ postRouter.patch('/:postId/comment/:commentId"', authenticate, async (req, res, 
     await CommentService.get(req, res, next);
 });
 
-// postRouter.post('', async (req, res, next) => {
-//     await PostService.create(req, res, next);
-// });
-// postRouter.patch('', authenticate, async (req, res, next) => {
-//     await PostService.update(req, res, next);
-// });
-// postRouter.delete('', authenticate, async (req, res, next) => {
-//     await PostService.delete(req, res, next);
-// });
 
 export default postRouter;

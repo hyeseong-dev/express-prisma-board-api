@@ -1,6 +1,6 @@
 import prisma from '../prisma/client.js';
 import {BaseService} from '../utils/service.js'
-
+import httpStatus from '../utils/httpStatus.js';
 
 class PostService extends BaseService {
   static model = 'post'
@@ -50,7 +50,7 @@ class PostService extends BaseService {
         } else if (currentPage === totalPages) {
           return { last: { page: totalPages, limit: perPageLimit } };
         } else {
-          throw new Error("Resource not found");
+          throw httpStatus.NOT_FOUND;
         }
       };
 
@@ -87,11 +87,11 @@ class PostService extends BaseService {
         where: { name: categoryName },
         select: {id: true},
       })
-      if (!category) return res.status(404).json({message: `${categoryName} not found`})
+      if (!category) return res.status(httpStatus.NOT_FOUND.code).json({message: `${categoryName} not found`})
       const categoryId = category.id
       
       if (!authorId || !categoryId || !title || !body){
-        return res.status(400).json({message : "Bad request"})
+        return res.status(httpStatus.BAD_REQUEST.code).json({message : "Bad request"})
       } 
 
       const post = await this.prisma.post.create({
@@ -101,7 +101,7 @@ class PostService extends BaseService {
                 categoryId,
               },
       });
-      return res.status(201).json(post);
+      return res.status(httpStatus.CREATED.code).json(post);
     } catch (error) {
       next(error);
     }
@@ -147,9 +147,9 @@ class PostService extends BaseService {
         }
       }
       );
-      if (!post) return res.status(404).json({message: 'post not found'});
+      if (!post) return res.status(httpStatus.NOT_FOUND.code).json({message: httpStatus.NOT_FOUND.message});
       
-      return res.status(200).json(post);
+      return res.status(httpStatus.OK.code).json(post);
     } catch (error) {
       next(error);
     }
@@ -162,13 +162,13 @@ class PostService extends BaseService {
       const title = req.body.title
       const body = req.body.body
       
-      if (!postId || !userId||!title || !body) return res.status(400).json({ message: 'bad request'})
+      if (!postId || !userId||!title || !body) return res.status(httpStatus.BAD_REQUEST.code).json({ message: httpStatus.BAD_REQEUEST.message})
         
       const _post = await this.prisma.post.updateMany({
         where: { id:postId, authorId: userId},
         data: {title, body}
       });
-      if (!_post.count) return res.status(404).json({message: 'not found'});
+      if (!_post.count) return res.status(httpStatus.NOT_FOUND.code).json({message: (httpStatus.NOT_FOUND.code)});
       
       const post = await this.prisma.post.findUnique({
         where: { id:postId },
@@ -207,7 +207,7 @@ class PostService extends BaseService {
         }
       }
       );
-      return res.status(200).json(post);
+      return res.status(httpStatus.OK.code).json(post);
     } catch (error) {
       next(error);
     }
@@ -217,14 +217,14 @@ class PostService extends BaseService {
     try {
       const postId = req.params.postId
       const userId = req.userId
-      if (!postId || !userId) return res.status(400).json({ message: 'bad request'})
+      if (!postId || !userId) return res.status(httpStatus.BAD_REQUEST.code).json({ message: httpStatus.BAD_REQEUEST.message})
       const post = await this.prisma.post.deleteMany({where: { id:postId, authorId: userId}});
-      if (!post.count) return res.status(404).json({message: 'not found'});
-      return res.status(200).json({message: "success to delete post"});
+      if (!post.count) return res.status(httpStatus.NOT_FOUND.code).json({message: (httpStatus.NOT_FOUND.code)});
+      return res.status(httpStatus.OK.code).json({message: "success to delete post"});
 
     } catch (error) {
       if (error.code === 'P2025'){
-        return res.status(404).json({message: error.message})
+        return res.status(httpStatus.NOT_FOUND.code).json({message: error.message})
       }
       next(error);
     }
