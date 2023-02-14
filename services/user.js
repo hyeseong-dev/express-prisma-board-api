@@ -1,21 +1,69 @@
 import prisma from '../prisma/client.js';
 import { exclude, encrypt_password, BaseService} from '../utils/service.js'
+import { NotFoundError } from '../utils/error.js'
 
 class UserService extends BaseService{
   static prisma = prisma
   static model = 'user'
   static async getAll(req,res,next) {
     try {
-      const { category, name, email, page, limit } = req.query
-      const or = (name || email) ? { category: { name: category },
-                                      OR: [{ name: { contains: name, mode: 'insensitive' }},
-                                            { email: { contains: email , mode: 'insensitive' }},
+      const { name, email, page, limit} = req.query
+      const or = (name || email) ? { OR: [{ name: { contains: name, mode: 'insensitive' }},
+                                         { email: { contains: email , mode: 'insensitive' }},
                                           ],
                                   } : {}
-      const options = { orderBy: [{ updatedAt: "desc" },{ title: "asc" }]}
-      const result = await this.paginate(this.model, or, page, limit, options);
-      return res.json(result);
+
+      const options = { orderBy: [{ updatedAt: "desc" },{ name: "asc" }]}
+      const currentPage = Number(page) || 1;
+      const perPageLimit = Number(limit) || 10;
+      const startIndex = (currentPage - 1) * perPageLimit;
+      
+      // console.log(`${currentPage}, ${perPageLimit}, ${startIndex}`)
+      const queryParamDB = { where: { ...or } }
+
+      const countQueryParamDB = {
+        where: { ...or },
+        take: perPageLimit,
+        skip: startIndex,
+        orderBy: options.orderBy || [{ updatedAt: "desc" }],
+      }
+
+      const totalCount = await this.prisma[this.model].count(queryParamDB);
+      const totalPages = Math.ceil(totalCount / perPageLimit);
+      
+      const setPaginationLinks = () => {
+        if (currentPage === 1) {
+          return { next: { page: currentPage + 1, limit: perPageLimit } };
+        } else if (currentPage < totalPages) {
+          return { previous: { page: currentPage - 1, limit: perPageLimit },
+                   next: { page: currentPage + 1, limit: perPageLimit } };
+        } else if (currentPage === totalPages) {
+          return { last: { page: totalPages, limit: perPageLimit } };
+        } else { 
+          throw new NotFoundError();
+        };
+      };
+
+      const setPaginatedData = async () => {
+        return await this.prisma[this.model].findMany(countQueryParamDB);
+      };
+
+      const [paginatedData, paginationLinks] = await Promise.all([setPaginatedData(), setPaginationLinks()]);
+
+      const paginationResult = { 
+        totalCount, 
+        totalPages, 
+        currentPage, 
+        paginatedData, 
+        currentCountPerPage: paginatedData.length,
+        range: currentPage * perPageLimit,
+        ...paginationLinks
+      };
+
+      return res.json(paginationResult);
+      // return res.json('paginationResult');
     } catch (error) {
+      if (error instanceof NotFoundError) { return res.status(error.code).json({message: error.message})}
       next(error);
     }
   }

@@ -6,7 +6,7 @@ class SearchService extends BaseService{
   static model = "post"
   static async get(req,res,next) {
     try {
-      const { category, title, body, page=1, limit=10 } = req.query;
+      const { category, title, body, page, limit} = req.query;
 
       const or = (title || body) ? { 
         OR: [{ title: { contains: title, mode: 'insensitive' }},
@@ -17,8 +17,8 @@ class SearchService extends BaseService{
         orderBy: [{ updatedAt: "desc" },{ title: "asc" }]
       };
 
-      const currentPage = parseInt(page);
-      const perPageLimit = parseInt(limit);
+      const currentPage = Number(page)|| 1;
+      const perPageLimit = Number(limit)|| 10;
       const startIndex = (currentPage - 1) * perPageLimit;
 
       const countQueryParamDB = {

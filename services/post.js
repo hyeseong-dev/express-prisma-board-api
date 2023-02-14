@@ -6,7 +6,7 @@ class PostService extends BaseService {
   static model = 'post'
   static async getAll(req,res,next) {
     try {
-      const { category, title, body, page=1, limit=10 } = req.query;
+      const { category, title, body, page, limit} = req.query;
 
       const or = (title || body) ? { 
         OR: [{ title: { contains: title, mode: 'insensitive' }},
@@ -17,8 +17,8 @@ class PostService extends BaseService {
         orderBy: [{ updatedAt: "desc" },{ title: "asc" }]
       };
 
-      const currentPage = parseInt(page);
-      const perPageLimit = parseInt(limit);
+      const currentPage = parseInt(page)| 1;
+      const perPageLimit = parseInt(limit)| 10;
       const startIndex = (currentPage - 1) * perPageLimit;
 
       const countQueryParamDB = {
